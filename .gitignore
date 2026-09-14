@@ -1,0 +1,42 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# 环境变量 / 敏感信息（API 密钥、数据库密码等）
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+
+# Node / 前端
+node_modules/
+dist/
+
+# IDE / 编辑器
+.idea/
+.vscode/
+*.swp
+
+# JetBrains AI 缓存
+.jbeval/
+
+# 操作系统
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# 日志 / 运行时产物
+*.log
+artifacts/
+
+# 本地文档（个人笔记，不提交）
+docs/
