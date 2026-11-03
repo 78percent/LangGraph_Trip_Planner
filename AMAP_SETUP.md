@@ -38,7 +38,7 @@ docker compose up -d --build
 
 当前项目是单用户演示应用，没有登录鉴权。共享部署应限制使用者范围；直接开放 `/api` 会允许访问者消耗部署账号的模型费用和高德配额。仓库中的 Compose 配置已做静态配置检查，服务器部署仍需在目标环境验证。
 
-## 同学拉取后独立运行
+## 拉取后独立运行
 
 1. 克隆仓库，按 README 安装 Python、前端依赖，并创建自己的 PostgreSQL 数据库。
 2. 首次配置时，复制 `backend/.env.example` 为 `backend/.env`，填写自己的模型 Key、高德 **Web 服务** Key 和数据库连接。
