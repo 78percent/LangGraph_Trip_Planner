@@ -18,3 +18,13 @@ if __name__ == '__main__':
     server = uvicorn.Server(uvicorn.Config('app.api.main:app', host=settings.host,
                                            port=settings.port, reload=False))
     run_async(server.serve())
+
+"""
+run.py
+→ 启动 uvicorn
+→ 加载 FastAPI app
+→ 触发 lifespan
+→ lifespan 里调用 build_services()
+→ 初始化数据库、Repository、Checkpointer、Amap、LLM、ChatAgent...
+→ 后端正式开始接请求
+"""

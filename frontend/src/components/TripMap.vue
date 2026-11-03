@@ -14,22 +14,57 @@ import type { Attraction, RouteInfo } from "@/types";
 const props = defineProps<{ points: Attraction[]; city: string }>();
 const container = ref<HTMLDivElement | null>(null);
 const error = ref("");
+const mapError = ref("");
+const mapLoading = ref(false);
 const loading = ref(false);
 const start = ref(0);
 const mode = ref("walking");
 const route = ref<RouteInfo | null>(null);
 const pairs = computed(() => props.points.slice(0, -1));
+const mapLink = computed(() => {
+  const point = props.points[0];
+  const url = new URL(`https://uri.amap.com/${point ? "marker" : "search"}`);
+  if (point) {
+    url.searchParams.set(
+      "position",
+      `${point.location.longitude},${point.location.latitude}`,
+    );
+    url.searchParams.set("name", point.name);
+    url.searchParams.set("coordinate", "gaode");
+  } else {
+    url.searchParams.set("keyword", props.city);
+    url.searchParams.set("city", props.city);
+  }
+  url.searchParams.set("src", "LangGraphTripPlanner");
+  url.searchParams.set("callnative", "0");
+  return url.href;
+});
 // The vendor loader returns a runtime SDK with no bundled TypeScript definitions.
 let map: any;
 let sdk: any;
 let line: any;
 let disposed = false;
+let attempt = 0;
+let mapTimeout: ReturnType<typeof setTimeout> | undefined;
 async function initialize() {
-  error.value = "";
+  const currentAttempt = ++attempt;
+  clearTimeout(mapTimeout);
+  map?.destroy();
+  map = null;
+  line = null;
+  mapError.value = "";
+  mapLoading.value = false;
   if (!import.meta.env.VITE_AMAP_WEB_KEY) {
-    error.value = "尚未配置浏览器地图 Key，行程文字仍可正常查看。";
+    mapError.value = "尚未配置浏览器地图 Key，可先在高德打开景点。";
     return;
   }
+  mapLoading.value = true;
+  mapTimeout = setTimeout(() => {
+    if (disposed || currentAttempt !== attempt) return;
+    mapLoading.value = false;
+    mapError.value =
+      "地图加载超时，请检查网络或浏览器地图 Key 的域名白名单后重试。";
+  }, 12000);
   try {
     const windowWithMap = window as typeof window & {
       _AMapSecurityConfig?: { securityJsCode: string };
@@ -37,15 +72,31 @@ async function initialize() {
     windowWithMap._AMapSecurityConfig = {
       securityJsCode: import.meta.env.VITE_AMAP_SECURITY_CODE || "",
     };
+    // A failed script request is cached by the vendor loader until reset.
+    if (!sdk) {
+      // Version 1.0.1 implements reset but omits it from its type declarations.
+      (AMapLoader as typeof AMapLoader & { reset: () => void }).reset();
+    }
     sdk = await AMapLoader.load({
       key: import.meta.env.VITE_AMAP_WEB_KEY,
       version: "2.0",
     });
-    if (disposed || !container.value) return;
+    if (disposed || currentAttempt !== attempt || !container.value) return;
     map = new sdk.Map(container.value, { zoom: 12, viewMode: "2D" });
+    // `complete` only ends the loading wait: tile auth failures can emit it too.
+    map.on("complete", () => {
+      if (disposed || currentAttempt !== attempt) return;
+      clearTimeout(mapTimeout);
+      mapLoading.value = false;
+      mapError.value = "";
+    });
     drawPoints();
   } catch {
-    error.value = "地图加载失败，请检查浏览器地图 Key、域名配置或网络。";
+    if (disposed || currentAttempt !== attempt) return;
+    clearTimeout(mapTimeout);
+    mapLoading.value = false;
+    mapError.value =
+      "地图加载失败，请检查浏览器地图 Key、域名白名单或网络后重试。";
   }
 }
 function drawPoints() {
@@ -108,6 +159,7 @@ watch(
 onMounted(initialize);
 onBeforeUnmount(() => {
   disposed = true;
+  clearTimeout(mapTimeout);
   map?.destroy();
 });
 </script>
@@ -117,7 +169,11 @@ onBeforeUnmount(() => {
     ref="container"
     style="height: 360px; border-radius: 12px; background: #e9eee5"
   ></div>
-  <p class="muted">标记使用高德实际坐标。选择一段相邻景点，查询真实路线。</p>
+  <div class="map-actions">
+    <a-button :loading="mapLoading" @click="initialize">重新加载地图</a-button>
+    <a :href="mapLink" target="_blank" rel="noopener noreferrer">在高德打开</a>
+  </div>
+  <div v-if="mapError" role="alert" class="notice">{{ mapError }}</div>
   <div v-if="pairs.length" class="grid">
     <label class="field"
       ><span>路线</span
@@ -144,3 +200,12 @@ onBeforeUnmount(() => {
   </p>
   <div v-if="error" role="alert" class="notice">{{ error }}</div>
 </template>
+
+<style scoped>
+.map-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 12px 0 20px;
+}
+</style>

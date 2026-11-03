@@ -27,7 +27,7 @@ class TripRequest(BaseModel):
         return self
 
 
-class Location(BaseModel):
+class Location(BaseModel):  # 被amap_http返回的POI对象使用检查，检查位置信息是否合法
     longitude: float = Field(ge=-180, le=180)
     latitude: float = Field(ge=-90, le=90)
 

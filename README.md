@@ -12,6 +12,7 @@
 - **持久化旅行对话**：Agent 可以调用地图工具，PostgreSQL Checkpointer 保存会话上下文和中断状态。
 - **历史与二次修改**：保存历史行程，支持用自然语言修改已有计划并另存为新行程。
 - **完整结果页**：展示每日安排、预算、天气、地图标记、真实路线，并支持图片与 PDF 导出。
+- **旅行杂志式界面**：本地风景图以水墨晕染过渡，规划进度展示真实阶段，行程支持日期导航和分段阅读。
 - **可验证的数据边界**：模型只选择 POI ID，名称、地址和坐标由代码回填；费用明确标记为估算值。
 
 ## 工作流程
@@ -70,7 +71,7 @@ LangGraph_Trip_Planner/
 ### 1. 准备环境
 
 - Python 3.14（当前项目验证版本）
-- Node.js 与 npm
+- Node.js 22.18 或更新版本、npm，以及用于安装 Python 环境的 uv
 - PostgreSQL，并提前创建独立数据库
 - DeepSeek 或其他 OpenAI 兼容模型 Key
 - 高德 Web 服务 Key；如需前端地图，再准备 JS API Key 与安全密钥
@@ -101,6 +102,8 @@ UNSPLASH_ACCESS_KEY=
 
 再复制 `frontend/.env.example` 为 `frontend/.env`，填写高德浏览器 JS Key 与所需安全密钥。后端 Web 服务 Key 与前端 JS API Key 不能混用。
 
+换网络反复出现 `10005`、前端地图报 `10006`，以及同学自行配置 Key 的步骤，见 [高德配置与换网络说明](AMAP_SETUP.md)。高德官方说明 Web 服务 Key 的 IP 白名单是非必填项；是否能清空，以当前账号控制台和实测为准。需要保留白名单时，可将后端部署到具有固定出口公网 IP 的服务器。
+
 > `.env` 含敏感信息并已被 `.gitignore` 排除，请勿提交到版本控制。
 
 ### 4. 启动服务
@@ -122,18 +125,20 @@ npm run dev
 - Swagger 文档：<http://127.0.0.1:8000/docs>
 - 终端对话：`.\.venv\Scripts\python.exe backend\run_loop.py`
 
+启动脚本固定使用 `127.0.0.1:8000` 和 `127.0.0.1:5173`；重复启动时会检查已有服务。后端自动管理 MCP 子进程。首次克隆不会包含原作者的密钥、数据库或历史记录，需填写自己的 `.env`。
+
 ## 主要接口
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| `POST` | `/trip/plan` | 生成完整旅行计划 |
-| `POST` | `/trip/plan/stream` | 以流式事件返回真实规划进度 |
-| `GET` | `/trip/plans` | 查询历史行程 |
-| `POST` | `/trip/plans/{plan_id}/revise` | 用自然语言修改并保存新版本 |
-| `POST` | `/chat/send` | 与可调用地图工具的 Agent 对话 |
-| `GET` | `/map/poi` | 查询兴趣点 |
-| `GET` | `/map/weather` | 查询天气 |
-| `POST` | `/map/route` | 查询步行、驾车或公共交通路线 |
+| `POST` | `/api/trip/plan` | 生成完整旅行计划 |
+| `POST` | `/api/trip/plan/stream` | 以流式事件返回真实规划进度 |
+| `GET` | `/api/trip/plans` | 查询历史行程 |
+| `POST` | `/api/trip/plans/{plan_id}/revise` | 用自然语言修改并保存新版本 |
+| `POST` | `/api/chat/send` | 与可调用地图工具的 Agent 对话 |
+| `GET` | `/api/map/poi` | 查询兴趣点 |
+| `GET` | `/api/map/weather` | 查询天气 |
+| `POST` | `/api/map/route` | 查询步行、驾车或公共交通路线 |
 
 完整参数和响应模型请以启动后的 Swagger 文档为准。
 
@@ -144,6 +149,7 @@ cd backend
 ..\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider
 
 cd ..\frontend
+node --test tests/planningProgress.test.ts
 npm run build
 ```
 
@@ -156,4 +162,4 @@ cd backend
 
 ## 当前定位
 
-这是一个面向本机学习与演示的单用户项目，重点展示 LangGraph 工作流、工具调用、结构化校验、状态持久化以及前后端协作。当前没有用户登录、租户隔离或完整的公网生产部署配置。
+这是一个面向学习与演示的单用户项目，重点展示 LangGraph 工作流、工具调用、结构化校验、状态持久化以及前后端协作。仓库提供 Docker Compose、前后端镜像与 nginx 反向代理配置，详见 [高德配置与换网络说明](AMAP_SETUP.md)。当前没有用户登录或租户隔离，共享部署时需要限制使用者范围。
