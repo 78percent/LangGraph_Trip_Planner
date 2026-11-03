@@ -102,9 +102,44 @@ UNSPLASH_ACCESS_KEY=
 
 再复制 `frontend/.env.example` 为 `frontend/.env`，填写高德浏览器 JS Key 与所需安全密钥。后端 Web 服务 Key 与前端 JS API Key 不能混用。
 
-换网络反复出现 `10005`、前端地图报 `10006`，以及同学自行配置 Key 的步骤，见 [高德配置与换网络说明](AMAP_SETUP.md)。高德官方说明 Web 服务 Key 的 IP 白名单是非必填项；是否能清空，以当前账号控制台和实测为准。需要保留白名单时，可将后端部署到具有固定出口公网 IP 的服务器。
-
 > `.env` 含敏感信息并已被 `.gitignore` 排除，请勿提交到版本控制。
+
+#### 高德 API：动态 IP 与白名单配置
+
+使用手机热点、校园网或家庭宽带时，公网出口 IP 可能变化。高德 Web 服务会检查**后端请求的公网出口 IP**；如果它不在 Key 的 IP 白名单中，就会返回 `10005 / INVALID_USER_IP`。
+
+两种 Key 的限制需要分别配置：
+
+| Key | 项目配置位置 | 白名单填写内容 |
+| --- | --- | --- |
+| Web 服务 Key | `backend/.env` 的 `AMAP_API_KEY` | 后端实际公网出口 IP |
+| Web 端（JS API）Key | `frontend/.env` 的 `VITE_AMAP_WEB_KEY` | 浏览器访问的域名或控制台允许的地址，本机使用 `127.0.0.1` |
+
+**个人本地开发或课堂演示：**
+
+1. 打开 [高德控制台](https://console.amap.com/dev/key/app)，找到 `AMAP_API_KEY` 对应的 **Web 服务 Key**，编辑它的 **IP 白名单**。
+2. 高德 [官方 FAQ](https://lbs.amap.com/faq/webservice/webservice-api/basic-configuration/43238) 说明 IP 白名单是非必填项。如果当前账号控制台允许清空并保存，可将其留空；保存后进行一次真实查询确认生效。这样可以避免因热点出口 IP 变化而反复添加地址。
+3. 如果控制台要求填写 IP，或希望保留限制，先连接实际使用的网络，再查询当前公网出口 IP 并加入白名单。更换网络或重新连接热点后，需要重新确认 IP。
+
+Windows 下可查询当前公网出口 IP：
+
+```powershell
+curl.exe https://myip.ipip.net
+```
+
+`127.0.0.1`、`localhost` 和 `192.168.x.x` 不能代替公网出口 IP。修改电脑的局域网静态 IP 或使用 DDNS，也不能固定手机热点的公网出口。清空 Web 服务 Key 的 IP 白名单后，拿到该 Key 的人可能使用其配额，因此该 Key 应保存在后端环境变量中。
+
+前端 JS Key 的**域名白名单仍需单独配置**；`10006 / INVALID_USER_DOMAIN` 应检查前端 JS Key 的域名限制。控制台不接受 `localhost` 时，本机统一使用 `http://127.0.0.1:5173/`，并配置允许的 `127.0.0.1` 地址。
+
+**多人长期使用：**将后端和 MCP 部署到具有固定公网出口 IP 的服务器，把服务器出口 IP 加入白名单。所有人访问同一网址，客户端切换网络不会改变高德看到的服务器 IP。同学各自拉取运行时，需要填写自己的 Key，并分别处理上述 IP 限制。
+
+启动前后端后，可验证真实高德查询：
+
+```powershell
+Invoke-RestMethod "http://127.0.0.1:5173/api/map/poi?city=杭州市&keywords=西湖"
+```
+
+完整部署步骤和错误排查见 [高德配置与换网络说明](AMAP_SETUP.md)。
 
 ### 4. 启动服务
 
